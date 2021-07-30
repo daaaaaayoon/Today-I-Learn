@@ -12,7 +12,7 @@
 
 ## 🎨 팩토리 메서드 패턴 예시
 
-### 1️⃣ 엘레베이터 작동을 지원해보자.
+**🧐 엘레베이터 작동을 지원해보자.**
 
 ### [ 상황 : 엘레베이터의 작동방식 스케줄링 지원 ]
 
@@ -87,7 +87,7 @@
     }
     ```
 
-### [ 팩토리 메서드 패턴1. 별도의 Factory 클래스 이용 : 스트래티지, 싱글턴 패턴 ]
+### [ 팩토리 메서드 패턴 1️⃣ - 별도의 Factory 클래스 이용 : 스트래티지, 싱글턴 패턴 ]
 
 - 위 방법의 문제점 : 오후에만 ThroughputScheduler를 쓰고 오전에는 다른 스케줄러를 사용하고 싶다면?
 - ⇒ 전략을 쉽게 바꿀 수 있는 스트래티지 패턴 사용
@@ -324,3 +324,123 @@
 2. 결론
     - 객체 생성을 전담하는 별도의 Factory 클래스를 분리하여 객체 생성의 변화에 대비할 수 있다.
     - 이 방법은 스트래티지 패턴과 싱글턴 패턴을 이용하여 팩토리 메서드 패턴을 적용한다.
+
+
+### [ 팩토리 메서드 패턴 2️⃣ - 상속 이용 : 스트래티지, 싱글턴, 템플릿 메서드 ]
+
+- 팩토리 메서드 패턴 2 = 팩토리 메서드 패턴 1 + 상속
+- 상속을 이용하는 것은 뭐다? ⇒ 템플릿 메소드
+- 즉, 팩토리 메서드 패턴 2는 스트래티지, 싱글턴, 템플릿 메서드 패턴을 적용한 패턴이다.
+- **상속을 이용하여** 하위 클래스에서 적합한 클래스의 객체를 생성하여 **객체의 생성 코드를 분리**한다.
+
+- **적용해보기**
+    - ElevatorManager를 추상 클래스로 변경 + getScheduler()를 추상 메서드로 변경
+
+        ```java
+        public abstract class ElevatorManager {
+
+            private List<ElevatorController> controllers;
+
+            public ElevatorManager(int controllerCount){
+                controllers = new ArrayList<ElevatorController>(controllerCount);
+                for(int i = 0; i < controllerCount; i++){
+                    ElevatorController controller = new ElevatorController(i);
+                    controllers.add(controller);
+                }
+            }
+        		
+        		// 팩토리 메서드 : 스케줄링 전략 객체를 생성하는 기능 제공
+            protected abstract ElevatorScheduler getScheduler();
+        		
+        		// 템플릿 메서드 : 요청에 따라 엘레베이터를 선택하고 이동시킴
+            public void requestElevator(int destination, Direction direction){
+                // 주어진 전략 ID에 해당되는 ElevatorScheduler로 변경
+                ElevatorScheduler scheduler = getScheduler();
+                System.out.println(scheduler);
+                int selectedElevator = scheduler.selectElevator(this, destination, direction);
+                controllers.get(selectedElevator).gotoFloor(destination);
+            }
+        }
+        ```
+
+    - 엘베 스케줄링 전략을 위한 ElevatorManager를 상속받는 하위 클래스 생성
+
+        ⇒ 모두 스케줄링 전략 객체를 생성하는 getScheduler() 메서드를 구현해야함 (= 객체 생성을 분리)
+
+        참고 ) 템플릿 메서드 패턴의 개념에 따르면, 하위 클래스에서 오버라이드될 필요가 있는 메서드는 primitive 또는 hook 메서드라고 부른답니다.
+
+        - emWithThroughputManager
+
+            ```java
+            public class emWithThroughputManager extends ElevatorManager {
+                public emWithThroughputManager(int controllerCount) {
+                    super(controllerCount);
+                }
+
+                @Override
+                protected ElevatorScheduler getScheduler() {
+                    return ThroughputScheduler.getInstance();
+                }
+            }
+            ```
+
+        - emWithResponseTimeManager
+
+            ```java
+            public class emWithResponseTimeManager extends ElevatorManager {
+                public emWithResponseTimeManager(int controllerCount) {
+                    super(controllerCount);
+                }
+
+                @Override
+                protected ElevatorScheduler getScheduler() {
+                    return ResponseTimeScheduler.getInstance();
+                }
+            }
+            ```
+
+        - emWithDynamicManager
+
+            ```java
+            public class emWithDynamicManager extends ElevatorManager {
+                public emWithDynamicManager(int controllerCount) {
+                    super(controllerCount);
+                }
+
+                @Override
+                protected ElevatorScheduler getScheduler() {
+                    ElevatorScheduler scheduler = null;
+                    int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
+                    if(hour < 12) {
+                        scheduler = ResponseTimeScheduler.getInstance();
+                    }
+                    else{
+                        scheduler = ThroughputScheduler.getInstance();
+                    }
+                    return scheduler;
+                }
+            }
+            ```
+
+    - 실행
+        - Client
+
+            ```java
+            public class Client {
+
+                public static void main(String[] args) {
+                    ElevatorManager emWithResponseTimerScheduler = new emWithResponseTimeManager(2);
+                    emWithResponseTimerScheduler.requestElevator(10, Direction.UP);
+
+                    ElevatorManager emWithThroughputScheduler = new emWithThroughputManager(2);
+                    emWithThroughputScheduler.requestElevator(10, Direction.UP);
+
+                    ElevatorManager emWithDynamicScheduler = new emWithDynamicManager(2);
+                    emWithDynamicScheduler.requestElevator(10, Direction.UP);
+                }
+
+            }
+            ```
+
+        - 출력 결과
+            - <img width="451" alt="스크린샷 2021-07-30 오전 11 45 07" src="https://user-images.githubusercontent.com/53184797/127592378-c483b4e5-7891-4a31-bded-eb19837b23a8.png">
