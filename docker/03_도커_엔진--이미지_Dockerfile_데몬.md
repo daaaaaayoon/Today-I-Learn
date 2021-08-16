@@ -1,6 +1,6 @@
 # Docker Engine
 
-## 🐳 도커 이미지, Dockerfile, 도케 데몬
+## 🐳 도커 이미지, Dockerfile, 도커 데몬
 
 ## 🐳 도커 이미지
 
@@ -271,3 +271,86 @@ RUN mkdir /test && \
 fallocate -l 100m /test/dummy && \
 rm /test/dummy
 ```
+
+## 🐳 도커 데몬
+
+지금까지 도커를 사용하는 방법을 알았으니 이제는 도커 자체를 다뤄보자.
+
+### 1️⃣ 도커의 구조
+
+1. 도커 명령어의 위치 
+
+    → 도커 명령어는 /usr/bin/docker에 위치한 파일을 통해 사용되고있음
+
+    ```bash
+    which docker # 명령어 파일이 위치한 경로 출력
+    /usr/bin/docker
+    ```
+
+2. 실행중인 도커 프로세스 확인
+
+    → 도커 엔진의 프로세스는 /usr/bin/dockerd 파일로 실행되고 있음
+
+    ```bash
+    ps aux | grep docker # ps aux : 실행중인 프로세스 목록 출력
+    ```
+
+    <img width="680" alt="스크린샷 2021-08-14 오후 12 29 29" src="https://user-images.githubusercontent.com/53184797/129432813-a4ef5006-4a7d-4ae3-8924-74a24874610b.png">
+
+3. **도커의 구조**
+    - 서버로서의 도커 - 실제 컨테이너를 생성,실행하며 이미지를 관리하는 주체 (dockerd 프로세서로 동작)
+
+        ⇒ 도커 엔진은 외부에서 API를 입력 받아서 기능을 수행한다.
+
+        ⇒ "**도커 데몬" : 도커 프로세스가 실행되어 서버로서 입력을 받을 준비가 된 상태**
+
+    - 클라이언트로서의 도커 - 도커 엔진의 기능을 수행하는데 API(도커 데몬에게 입력)를 사용할 수 있도록 CLI를 제공하는 것, `docker`로 시작하는 명령어
+4. **도커의 제어 과정**
+
+    <img width="1275" alt="스크린샷 2021-08-14 오후 12 27 11" src="https://user-images.githubusercontent.com/53184797/129432763-e4188e69-2adf-45cc-a05b-52a59d860932.png">
+
+    1. 터미널이나 PuTTY 등으로 도커가 설치된 호스트에 접속
+    2. 사용자가 docker ps와 같은 도커 명령어 입력
+    3. /usr/bin/docker는 /var/run/docker.sock 유닉스 소켓을 사용해 도커 데몬에게 명령어 전달
+    4. 도커 데몬은 이 명령어를 파싱하고 명령어에 해당하는 작업을 수행
+    5. 수행 결과를 도커 클라이언트에 반환하고 사용자에게 결과를 출력
+
+### 2️⃣ 도커 데몬 실행
+
+1. 서비스를 통해서 실행
+
+    ```bash
+    service docker start
+    service docker stop
+    ```
+
+2. 직접 실행
+
+    ```bash
+    service docker stop
+    dockerd
+    ```
+
+    <img width="679" alt="스크린샷 2021-08-14 오후 12 29 19" src="https://user-images.githubusercontent.com/53184797/129432814-1ba1bddb-5ac4-4735-8857-c17fd50bbbe0.png">
+
+    → /var/run/docker.sock에서 입력을 받을 수 있는 상태라는 메세지 출력
+
+⇒ 실제 운영 환경에서는 도커 데몬을 직접 실행하기보다는 service, systemctl 명령어로 서비스로 관리하는게 좋다. (디버깅, 도커 자체의 트러블 슈팅이 필요한 경우는 도커 데몬)
+
+### 3️⃣ 도커 데몬 설정
+
+1. 도커 데몬 제어 `-H` : 도커 데몬의 API를 사용할 수 있는 방법 추가
+
+    ```bash
+    dockerd -H unix:///var/run/docker.sock -H tcp://192.168.99.100:2375
+    ```
+
+2. 도커 데몬 보안 적용 `—tlsverify` : 보안 연결을 설정하는 옵션(기본적으로 설정되지 않음)
+3. 도커 스토리지 드라이버 `—storage-driver`
+    - AUFS, Devicemapper, OverlayFS, Btrfs, ZFS 등
+
+### 4️⃣ 도커 데몬 모니터링
+
+1. 도커 데몬 debug 모드 : `dockerd -D`
+2. 도커가 제공하는 명령어 : `events` ,`stats`, `system df` 
+3. 구글이 만든 컨테이너 모니터링 도구 : CAdvisor
